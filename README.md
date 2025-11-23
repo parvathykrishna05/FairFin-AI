@@ -74,6 +74,7 @@ Auth0 Login → Role Router → User/Admin/Analyst Dashboards
 ## 📁 Project Structure
 
 ├── app.py # Main entry point
+
 ├── analysis.py # ML prediction and SHAP utilities
 ├── model_training.py # Model training script
 ├── models.py # SQLAlchemy ORM definitions
