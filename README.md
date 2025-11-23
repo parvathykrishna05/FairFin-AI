@@ -1,104 +1,60 @@
-# FairFin — AI-Assisted Loan Evaluation System
+<div align="center">
 
-FairFin is a transparent and role-based loan processing platform designed to simulate a real-world loan workflow.  
-It includes multi-role authentication, ML-based credit decisioning, SHAP-driven model explainability, edit request handling, and a full audit trail.
+# 💰 FairFin — AI-Assisted Loan Evaluation System
 
----
-
-## 🚀 Features
-
-### 🔐 Authentication & User Roles
-- Auth0 secure login
-- Automatic first-time user registration
-- Role-based dashboards:
-  - **User** – Submit and track loan requests
-  - **Analyst** – Evaluate applications using ML predictions + SHAP
-  - **Admin** – Approve edit/withdrawal requests and manage workflow
+A responsible, explainable and role-based loan decisioning application powered by machine learning, Auth0 authentication, and SHAP explainability.
 
 ---
 
-### 📊 ML Decision Support
-- Logistic Regression model trained on synthetic financial data
-- Automatic feature preprocessing via Sklearn Pipeline
-- Probability-based outcome prediction (`approve` vs `deny`)
-- Fair and transparent SHAP explainability to justify decisions
+### 🔒 Authentication • 🤖 Machine Learning • 📊 SHAP Explainability • 🏦 Loan Workflow Automation
 
 ---
 
-### 🧾 User Loan Management
-- Submit new loan applications
-- View status history
-- Request:
-  - Loan detail corrections
-  - Withdrawal before analyst decision
-- Edit requests processed by analyst or admin
+</div>
+
+<br>
+
+## 🏷️ Badges
+
+![Python](https://img.shields.io/badge/Python-3.9+-blue?logo=python)
+![Streamlit](https://img.shields.io/badge/Streamlit-Framework-red?logo=streamlit)
+![Status](https://img.shields.io/badge/Project-Working-success)
+![License](https://img.shields.io/badge/License-Open%20Use-green)
+![Auth0](https://img.shields.io/badge/Auth0-Authentication-orange?logo=auth0)
 
 ---
 
-### ✔ Analyst Workflow
-- View pending applications
-- View ML prediction and SHAP explanation
-- Decide: `approve`, `deny`, or `leave pending`
+## 📌 Overview
+
+FairFin demonstrates how AI-powered decision systems can be transparent, fair, and auditable.  
+It simulates a realistic loan processing environment with multiple user roles and explainable ML predictions.
 
 ---
 
-### 🛠 Admin Controls
-- Approve or reject edit/withdrawal requests
-- View activity log trail
+## 👥 User Roles
+
+| Role | Can Submit Loan | View SHAP ML Decision | Approve/Deny | Approve Edit/Withdraw | Manage System |
+|------|----------------|------------------------|--------------|------------------------|---------------|
+| **User** | ✔ | ✖ | ✖ | Request only | ✖ |
+| **Analyst** | ✖ | ✔ | ✔ | ✖ | ✖ |
+| **Admin** | ✖ | ✔ | ✔ | ✔ | ✔ |
 
 ---
 
-## 🧩 System Architecture
+## 🚀 Core Features
 
-Auth0 Login → Role Router → User/Admin/Analyst Dashboards
-↳ ML Model (predict)
-↳ SHAP Explainer (interpret)
-↳ SQLite DB (SQLAlchemy ORM)
-
-
----
-
-## 📦 Technology Stack
-
-| Component | Technology |
-|----------|------------|
-| UI Framework | Streamlit |
-| Backend / Logic | Python |
-| Database | SQLite (SQLAlchemy ORM) |
-| Authentication | Auth0 |
-| Machine Learning | Scikit-Learn + SHAP |
-| State/Session | Streamlit Session State |
-
----
-
-## 📁 Project Structure
-
-├── app.py # Main entry point
-
-├── analysis.py # ML prediction and SHAP utilities
-
-├── model_training.py # Model training script
-
-├── models.py # SQLAlchemy ORM definitions
-
-├── services.py # Business logic layer
-
-├── user_views.py # User dashboard UI
-
-├── analyst_views.py # Analyst dashboard UI
-
-├── admin_views.py # Admin dashboard UI
-
-├── ui_components.py # Styled UI widgets
-
-└── models/ # Saved ML model + metadata
-
+- 🔐 **Auth0 secure login with automatic role onboarding**
+- 🤖 **Machine learning approval prediction using logistic regression**
+- 📈 **SHAP interpretability to justify AI decisions**
+- 🏦 **Full loan lifecycle management: submit → edit → analyst → admin**
+- 🧾 **Audit logging for every decision**
+- 🗃️ **SQLite + SQLAlchemy ORM for clean persistence**
 
 ---
 
 ## 🧪 Training the Model
 
-Run the following command once to generate:
+Run the command below once to generate:
 
 - `model.joblib`
 - `explainer.joblib`
@@ -106,8 +62,3 @@ Run the following command once to generate:
 
 ```sh
 python model_training.py
-
-
-▶ Running the Application
-1️⃣ Install dependencies:
-pip install -r requirements.txt
