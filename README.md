@@ -107,42 +107,7 @@ Run the following command once to generate:
 ```sh
 python model_training.py
 
+
 ▶ Running the Application
-
-Install dependencies:
+1️⃣ Install dependencies:
 pip install -r requirements.txt
-Start the application:
-
-streamlit run app.py
-
-🔧 Environment Variables
-
-Create a .env file containing:
-
-AUTH0_DOMAIN=your-domain.auth0.com
-AUTH0_CLIENT_ID=xxxx
-AUTH0_CLIENT_SECRET=xxxx
-REDIRECT_URI=http://localhost:8501
-
-🛡 Data Integrity & Explainability
-
-FairFin does NOT auto-approve decisions based solely on ML.
-Every analyst decision requires an explanation, ensuring transparency and fairness in financial decisioning.
-
-🧭 Future Enhancements
-
-Exportable PDF approval letters
-
-External database support (PostgreSQL / MySQL)
-
-Portfolio-level risk scoring
-
-Improved UI with dark mode & analytics dashboard
-
-📄 License
-
-This project is free to modify and use for educational or prototype purposes.
-
-👤 Author
-
-FairFin AI Loan System — Built for demonstration of responsible FinTech AI.
