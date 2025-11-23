@@ -76,13 +76,21 @@ Auth0 Login → Role Router → User/Admin/Analyst Dashboards
 ├── app.py # Main entry point
 
 ├── analysis.py # ML prediction and SHAP utilities
+
 ├── model_training.py # Model training script
+
 ├── models.py # SQLAlchemy ORM definitions
+
 ├── services.py # Business logic layer
+
 ├── user_views.py # User dashboard UI
+
 ├── analyst_views.py # Analyst dashboard UI
+
 ├── admin_views.py # Admin dashboard UI
+
 ├── ui_components.py # Styled UI widgets
+
 └── models/ # Saved ML model + metadata
 
 
