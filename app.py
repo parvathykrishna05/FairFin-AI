@@ -11,7 +11,7 @@ init_db()
 st.set_page_config(page_title="FairFin - Loan Portal", layout="wide")
 st.title("FairFin — Loan Application Portal")
 
-# Extract query params (new Streamlit API)
+# Extract query params
 query_params = st.query_params
 
 # ------------------------------
@@ -27,9 +27,8 @@ if "code" in query_params:
         st.session_state["id_token"] = token_data.get("id_token")
         st.session_state["access_token"] = token_data.get("access_token")
     except Exception as e:
-        st.error(f"Failed to exchange token: {e}")
+        st.error("Authentication failed. Please try again.")
 
-    # Clear the URL query params
     st.query_params = {}
     st.rerun()
 
@@ -41,65 +40,60 @@ if "id_token" in st.session_state and st.session_state["id_token"]:
     try:
         info = decode_id_token(st.session_state["id_token"])
     except Exception:
-        st.error("Invalid ID Token")
+        st.error("Invalid login session. Please sign in again.")
         st.stop()
 
     auth0_sub = info.get("sub")
-    email = info.get("email")
-    name = info.get("name") or info.get("nickname") or email
+    email = info.get("email") or info.get("preferred_username") or None
+    name = info.get("name") or info.get("nickname") or "User"
+
+    if not email:
+        st.error("No email was returned by Auth0. Cannot proceed.")
+        st.stop()
 
     st.sidebar.info(f"Logged in as: {name}")
 
     # ------------------------------
-    # 3. ALWAYS LOAD FRESH USER FROM DATABASE
+    # 3. SAFE USER CREATE / LOAD LOGIC
     # ------------------------------
     with session_scope() as s:
-        user = (
-            s.query(User)
-            .filter(User.auth0_id == auth0_sub)
-            .first()
-        )
+        user = s.query(User).filter(User.email == email).first()
 
-        # First-time user → create new row
-        if not user:
-            user = User(
-                auth0_id=auth0_sub,
-                name=name,
-                email=email,
-                role=None
-            )
+        if user:
+            if user.auth0_id != auth0_sub:
+                user.auth0_id = auth0_sub
+                s.commit()
+        else:
+            user = User(auth0_id=auth0_sub, name=name, email=email, role=None)
             s.add(user)
             s.commit()
             s.refresh(user)
 
     # ------------------------------
-    # 4. ROLE SELECTION LOGIC — NEVER SKIPPED NOW
+    # 4. ROLE SELECTION (first login only)
     # ------------------------------
     if not user.role or user.role.strip() == "":
         st.info("Please select your role to continue.")
 
         selected_role = st.radio(
             "Select role",
-            ["user", "analyst", "admin"]
+            ["user", "analyst", "admin"],
+            key=f"role_select_{email}"
         )
 
-        if st.button("Save Role"):
+        if st.button("Save Role", key=f"save_role_{email}"):
             with session_scope() as s:
-                db_user = (
-                    s.query(User)
-                    .filter(User.auth0_id == auth0_sub)
-                    .first()
-                )
+                db_user = s.query(User).filter(User.auth0_id == auth0_sub).first()
                 db_user.role = selected_role
                 s.commit()
 
-            st.success("Role saved! Reloading...")
+            st.success("Role saved. Reloading...")
             st.rerun()
 
         st.stop()
 
     # ------------------------------
-    # 5. ROLE-BASED DASHBOARD
+    # 5. ROLE-BASED VIEW ROUTING
     # ------------------------------
     if user.role == "user":
         user_views.user_dashboard(user)
@@ -111,13 +105,13 @@ if "id_token" in st.session_state and st.session_state["id_token"]:
         admin_views.admin_dashboard(user)
 
     else:
-        st.error("Invalid role in database.")
+        st.error("Unexpected role. Contact the administrator.")
         st.stop()
 
 else:
     # ------------------------------
-    # 6. LOGIN PAGE (NO USER LOGGED IN)
+    # 6. LOGIN PAGE
     # ------------------------------
-    st.header("Please log in")
+    st.header("Please log in to continue")
     login_url = build_auth_url()
     st.markdown(f"[**Sign in with Auth0**]({login_url})")
