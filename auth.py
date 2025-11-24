@@ -34,7 +34,7 @@ def build_auth_url():
         "prompt": "select_account"   # forces fresh login instead of using stale cached SSO
     }
 
-
+    return f"{AUTH0_AUTHORIZE_URL}?{urlencode(params)}"
 
 
 def exchange_code_for_tokens(code):
