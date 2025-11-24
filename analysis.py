@@ -150,3 +150,50 @@ def shap_bar_plot(explainer, model_pipeline, application_data, feature_names=Non
     ax.set_title("Top SHAP feature contributions")
     plt.tight_layout()
     return fig
+
+
+def generate_simple_shap_explanation(explainer, model_pipeline, application_data, feature_names=None, topn=3):
+    """
+    Generate a simple, human-readable explanation using SHAP values.
+
+    Returns a short paragraph + bullet points such as:
+    - "High loan amount had a negative impact on your approval"
+    """
+
+    # Build raw input and transform it using the same preprocessor as the model
+    df = build_input_dataframe(application_data)
+    X_trans = model_pipeline.named_steps["preprocessor"].transform(df)
+
+    shap_values = explainer.shap_values(X_trans)
+    arr = shap_values if isinstance(shap_values, (list, tuple)) else [shap_values]
+    vals = np.array(arr[0]).flatten()
+
+    # Use transformed feature names for labels
+    if feature_names is None:
+        feature_names = load_feature_names()
+
+    if feature_names is None:
+        feature_names = [f"Feature {i+1}" for i in range(len(vals))]
+
+    # Pick top features by absolute SHAP value
+    pairs = list(zip(feature_names, vals))
+    pairs_sorted = sorted(pairs, key=lambda x: abs(x[1]), reverse=True)[:topn]
+
+    if not pairs_sorted:
+        return "The model could not generate a clear explanation for this decision."
+
+    lines = []
+    for name, value in pairs_sorted:
+        # Make names more readable, e.g. 'Credit_Score' → 'Credit score'
+        human_name = name.replace("_", " ")
+
+        if value < 0:
+            lines.append(f"- {human_name} had a negative impact on your loan approval.")
+        else:
+            lines.append(f"- {human_name} had a positive impact on your loan approval.")
+
+    explanation = (
+        "The decision was mainly based on these factors:\n"
+        + "\n".join(lines)
+    )
+    return explanation

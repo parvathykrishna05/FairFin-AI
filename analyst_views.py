@@ -1,13 +1,19 @@
-# analyst_views.py
 import streamlit as st
 from services import session_scope, list_pending_loans, log_action
 from ui_components import page_header
-from analysis import load_model, load_explainer, load_feature_names, predict_proba_and_class, shap_bar_plot
+from analysis import (
+    load_model,
+    load_explainer,
+    load_feature_names,
+    predict_proba_and_class,
+    shap_bar_plot,
+    generate_simple_shap_explanation
+)
 import matplotlib.pyplot as plt
 
 
 def analyst_dashboard(user):
-    page_header("Analyst dashboard", "Review pending applications and run model analysis.")
+    page_header("Analyst Dashboard", "Review pending applications and run model analysis.")
 
     model = load_model()
     explainer = load_explainer()
@@ -17,7 +23,7 @@ def analyst_dashboard(user):
         pending = list_pending_loans(s)
 
     if not pending:
-        st.info("No pending applications.")
+        st.info("No pending loan applications.")
         return
 
     for loan in pending:
@@ -26,66 +32,86 @@ def analyst_dashboard(user):
 
         cols = st.columns([1, 1, 1])
 
-        # ----------------------
-        # Prediction Section
-        # ----------------------
+        # --------------------------
+        # Column 1 — Model Prediction
+        # --------------------------
         with cols[0]:
-            if model:
+            if model is not None:
                 try:
                     proba, pred = predict_proba_and_class(model, loan.application_data)
-                    st.metric("Approval probability", f"{proba:.2%}")
-                    st.write("Predicted Decision:", "✔ Approved" if pred == 1 else "✖ Denied")
-                except Exception:
-                    st.warning("Prediction unavailable for this record.")
+                    st.metric("Approval Probability", f"{proba:.2f}")
+                    st.write("Predicted Decision:", "Approved ✔" if pred == 1 else "Denied ❌")
+                except Exception as e:
+                    st.warning(f"Prediction unavailable: {e}")
             else:
-                st.info("Model missing. Add model.joblib to /models folder.")
+                st.info("No ML model available.")
 
-        # ----------------------
-        # SHAP Explanation Section
-        # ----------------------
+        # --------------------------
+        # Column 2 — SHAP Plot
+        # --------------------------
         with cols[1]:
+            if explainer is not None and model is not None:
+                try:
+                    fig = shap_bar_plot(explainer, model, loan.application_data, feature_names=feature_names, topn=6)
+                    st.pyplot(fig)
+                except Exception as e:
+                    st.warning(f"Unable to generate SHAP explanation: {e}")
+            else:
+                st.info("SHAP explainer not available.")
+
+        # --------------------------
+        # Column 3 — Decision + Explanation
+        # --------------------------
+        with cols[2]:
+
+            auto_explanation = ""
+
+            # Generate SHAP-based plain language bullet points
             if explainer and model:
                 try:
-                    fig = shap_bar_plot(
+                    raw_text = generate_simple_shap_explanation(
                         explainer,
                         model,
                         loan.application_data,
                         feature_names=feature_names,
-                        topn=8
+                        topn=3
                     )
-                    st.pyplot(fig)
-                except Exception:
-                    st.warning("Unable to generate SHAP explanation.")
-            else:
-                st.info("SHAP explainer unavailable.")
 
-        # ----------------------
-        # Decision Panel
-        # ----------------------
-        with cols[2]:
+                    # Convert explanation into clean bullet point lines
+                    auto_explanation = "\n" + "\n".join([line for line in raw_text.split("\n") if line.startswith("-")])
+
+                except Exception:
+                    auto_explanation = ""
+
             decision = st.selectbox(
-                f"Decision for {loan.id}",
+                f"Decision for Loan {loan.id}",
                 ["leave pending", "approve", "deny"],
-                key=f"dec_{loan.id}"
+                key=f"decision_{loan.id}"
             )
 
-            explanation = st.text_area("Explanation", key=f"exp_{loan.id}")
+            explanation = st.text_area(
+                "Explanation shown to the user (auto-generated, editable):",
+                key=f"explain_{loan.id}",
+                value=auto_explanation
+            )
 
-            if st.button(f"Apply decision for {loan.id}", key=f"apply_{loan.id}"):
+            if st.button(f"Apply Decision for {loan.id}", key=f"apply_{loan.id}"):
                 with session_scope() as s:
-                    l = s.query(type(loan)).get(loan.id)
+                    db_loan = s.query(type(loan)).get(loan.id)
 
                     if decision == "approve":
-                        l.status = "approved"
-                        l.decision = "approved"
-                        l.explanation = explanation
+                        db_loan.status = "approved"
+                        db_loan.decision = "approved"
+                        db_loan.explanation = explanation
 
                     elif decision == "deny":
-                        l.status = "denied"
-                        l.decision = "denied"
-                        l.explanation = explanation
+                        db_loan.status = "denied"
+                        db_loan.decision = "denied"
+                        db_loan.explanation = explanation
 
-                    log_action(s, user.id, f"Analyst marked loan {loan.id} as {decision}")
+                    # leave pending → no changes
 
-                st.success("Decision saved.")
+                    log_action(s, user.id, f"Analyst updated loan {loan.id} with decision: {decision}")
+
+                st.success("Decision saved successfully.")
                 st.rerun()
