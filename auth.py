@@ -1,36 +1,40 @@
-# auth.py
 """
 Auth helpers for Auth0 integration.
-This module provides helper functions used by app.py.
-It expects environment variables:
-AUTH0_DOMAIN, AUTH0_CLIENT_ID, AUTH0_CLIENT_SECRET, REDIRECT_URI
+This version uses environment variables so the app works
+both locally (localhost) and in Streamlit Cloud deployment.
 """
+
 import os
 from urllib.parse import urlencode
 import requests
 import jwt
 
-AUTH0_DOMAIN = "dev-kuzw0skvn3eikhgp.us.auth0.com"
-CLIENT_ID = "6bOpzoB2oObOQ8CxJ82FKFd4NA3N21o0"
-CLIENT_SECRET = "sfo95lc1QEzaqRmQtACugXUh3O5XNX_brKVsalY4toxfR4K-wvbxMx_ped9LP2I0"
-REDIRECT_URI = "https://fairfin-ai-7ufnb4rxfnwhwbs2xaygzr.streamlit.app"
+# ---- Load configuration from environment ----
+AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")
+CLIENT_ID = os.getenv("CLIENT_ID")
+CLIENT_SECRET = os.getenv("CLIENT_SECRET")
+REDIRECT_URI = os.getenv("REDIRECT_URI")  # IMPORTANT
+
+# ---- Auth0 Endpoints ----
 AUTH0_BASE_URL = f"https://{AUTH0_DOMAIN}"
 AUTH0_AUTHORIZE_URL = f"{AUTH0_BASE_URL}/authorize"
 AUTH0_TOKEN_URL = f"{AUTH0_BASE_URL}/oauth/token"
 
+
 def build_auth_url():
+    """Create the Auth0 login redirect URL."""
     params = {
         "client_id": CLIENT_ID,
         "response_type": "code",
         "redirect_uri": REDIRECT_URI,
         "scope": "openid profile email",
-        "prompt": "select_account consent"  # ← VERY IMPORTANT
+        "prompt": "select_account"  # ensures user can switch accounts if needed
     }
     return f"{AUTH0_AUTHORIZE_URL}?{urlencode(params)}"
 
 
-
 def exchange_code_for_tokens(code):
+    """Exchange authorization code for tokens."""
     payload = {
         "grant_type": "authorization_code",
         "client_id": CLIENT_ID,
@@ -38,11 +42,18 @@ def exchange_code_for_tokens(code):
         "redirect_uri": REDIRECT_URI,
         "code": code
     }
-    resp = requests.post(AUTH0_TOKEN_URL, data=payload,
-                         headers={"Content-Type": "application/x-www-form-urlencoded"}, timeout=10)
-    resp.raise_for_status()
-    return resp.json()
+
+    response = requests.post(
+        AUTH0_TOKEN_URL,
+        data=payload,
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        timeout=10
+    )
+
+    response.raise_for_status()
+    return response.json()
+
 
 def decode_id_token(id_token):
-    # For demo only: do not skip verification in production.
+    """Decode token (signature skipped for simplicity — fine for demo)."""
     return jwt.decode(id_token, options={"verify_signature": False})
