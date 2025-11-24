@@ -14,11 +14,7 @@ if st.query_params:
     pass
 
 
-import os
-st.sidebar.write("🔍 DEBUG:")
-st.sidebar.write("AUTH0_DOMAIN =", os.getenv("AUTH0_DOMAIN"))
-st.sidebar.write("CLIENT_ID =", os.getenv("CLIENT_ID"))
-st.sidebar.write("REDIRECT_URI =", os.getenv("REDIRECT_URI"))
+
 
 
 # Initialize database
@@ -42,13 +38,14 @@ if "code" in query_params:
         token_data = exchange_code_for_tokens(code)
         st.session_state["id_token"] = token_data.get("id_token")
         st.session_state["access_token"] = token_data.get("access_token")
-    except Exception:
-        st.error("Authentication failed. Please try again.")
-
-    # Fix infinite loop — fully reset URL parameters
-    st.query_params = {}
-    st.rerun()
-
+        
+        # CRITICAL: Clear the code from URL to prevent re-processing
+        st.query_params.clear()
+        st.rerun()
+        
+    except Exception as e:
+        st.error(f"Authentication failed: {e}")
+        st.stop()
 
 
 # ------------------------------
