@@ -32,7 +32,7 @@ if "code" in query_params:
         st.session_state["access_token"] = token_data.get("access_token")
 
         # Remove the code from URL to prevent looping
-        st.experimental_set_query_params()
+        st.query_params={}
         st.rerun()
     except Exception as e:
         st.error(f"Authentication failed: {e}")
