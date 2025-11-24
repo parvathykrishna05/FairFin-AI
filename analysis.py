@@ -1,11 +1,11 @@
 """
 Model loading and prediction utilities.
 Assumes artifacts are in ./models directory:
-- model.joblib (sklearn pipeline)
-- explainer.joblib (shap explainer)
-- feature_names.joblib (names of transformed features for SHAP plots)
-- numerical_cols.joblib (raw numeric input columns)
-- categorical_cols.joblib (raw categorical input columns)
+- model.joblib        (sklearn pipeline)
+- explainer.joblib    (shap explainer on transformed features)
+- feature_names.joblib
+- numerical_cols.joblib
+- categorical_cols.joblib
 """
 
 import os
@@ -14,9 +14,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import shap
 import numpy as np
-import streamlit as st
-from joblib import dump, load
-
 
 MODEL_DIR = os.environ.get("MODEL_DIR", "models")
 
@@ -36,36 +33,14 @@ def load_model():
     return None
 
 
-
 def load_explainer():
-
-    try:
-        model = load("models/model.pkl")
-
-        # Background dataset: required for shap.LinearExplainer
-        # If you already have a dataset, load that.
-        # Otherwise fallback to a random small baseline.
-        feature_names = load_feature_names()
-
-        if os.path.exists("models/background.npy"):
-            background = np.load("models/background.npy")
-        else:
-            # Fallback — small synthetic baseline with correct shape
-            background = np.zeros((10, len(feature_names)))
-
-        # Use proper explainer for logistic regression
-        explainer = shap.LinearExplainer(model, background)
-
-        return explainer
-
-    except Exception as e:
-        print("SHAP Explainer Error:", e)
-        return None
-
+    """Load pre-trained SHAP explainer if available."""
+    if os.path.exists(EXPLAINER_PATH):
+        return joblib.load(EXPLAINER_PATH)
+    return None
 
 
 def load_feature_names():
-    """Names of transformed features used only for SHAP axis labels."""
     if os.path.exists(FEATURE_NAMES_PATH):
         return joblib.load(FEATURE_NAMES_PATH)
     return None
@@ -88,30 +63,24 @@ def load_categorical_cols():
 # -------------------------
 def build_input_dataframe(application_data: dict) -> pd.DataFrame:
     """
-    Build a DataFrame for the model using the raw input feature names
-    (numerical + categorical), adding any missing columns with defaults and
-    ignoring extra keys (like 'submitted_at').
+    Build a DataFrame for the model using the raw feature names
+    (numerical + categorical), adding missing columns with defaults
+    and ignoring extras like 'submitted_at'.
     """
     df = pd.DataFrame([application_data])
 
     num_cols = load_numerical_cols() or []
     cat_cols = load_categorical_cols() or []
 
-    # If we know the expected raw columns from training, align to them
     if num_cols or cat_cols:
         expected_cols = list(num_cols) + list(cat_cols)
 
-        # Add missing expected columns with neutral defaults
         for col in expected_cols:
             if col not in df.columns:
-                # For simplicity, fill 0 for both numeric and categorical.
-                # In your current synthetic setup this is acceptable.
-                df[col] = 0
+                df[col] = 0  # neutral default in your synthetic setup
 
-        # Keep only expected columns, in trained order
         df = df[expected_cols]
 
-    # If we do not know the column list (artifacts missing), just use whatever is there.
     return df
 
 
@@ -119,10 +88,7 @@ def build_input_dataframe(application_data: dict) -> pd.DataFrame:
 # Prediction
 # -------------------------
 def predict_proba_and_class(model_pipeline, application_data):
-    """
-    Returns (probability_of_approval, class)
-    class: 1 = approved, 0 = denied
-    """
+    """Returns (probability_of_approval, predicted_class)."""
     df = build_input_dataframe(application_data)
     proba = model_pipeline.predict_proba(df)[0, 1]
     pred = int(model_pipeline.predict(df)[0])
@@ -133,30 +99,19 @@ def predict_proba_and_class(model_pipeline, application_data):
 # SHAP bar plot
 # -------------------------
 def shap_bar_plot(explainer, model_pipeline, application_data, feature_names=None, topn=10):
-    """
-    Returns a matplotlib figure with top-n features by absolute SHAP value.
-
-    - Uses explainer already fitted on transformed features.
-    - Uses feature_names (transformed feature names) for labels if available.
-    """
-
-    # Build raw input DataFrame and transform it
+    """Return a matplotlib figure with top-n features by absolute SHAP value."""
     df = build_input_dataframe(application_data)
     X_trans = model_pipeline.named_steps["preprocessor"].transform(df)
 
     shap_values = explainer.shap_values(X_trans)
-
-    # shap_values for LinearExplainer often returns array-like (1, n_features)
     arr = shap_values if isinstance(shap_values, (list, tuple)) else [shap_values]
     vals = np.array(arr[0]).flatten()
 
     if feature_names is None:
         feature_names = load_feature_names()
-
     if feature_names is None:
         feature_names = [f"f{i}" for i in range(len(vals))]
 
-    # Pair names with SHAP values and sort by absolute importance
     data = list(zip(feature_names, vals))
     data_sorted = sorted(data, key=lambda x: abs(x[1]), reverse=True)[:topn]
 
@@ -165,7 +120,6 @@ def shap_bar_plot(explainer, model_pipeline, application_data, feature_names=Non
     else:
         names, values = [], []
 
-    # Plot
     fig, ax = plt.subplots(figsize=(6, max(2, len(values) * 0.4)))
     y_pos = range(len(values))
     ax.barh(y_pos, list(values)[::-1])
@@ -179,13 +133,8 @@ def shap_bar_plot(explainer, model_pipeline, application_data, feature_names=Non
 
 def generate_simple_shap_explanation(explainer, model_pipeline, application_data, feature_names=None, topn=3):
     """
-    Generate a simple, human-readable explanation using SHAP values.
-
-    Returns a short paragraph + bullet points such as:
-    - "High loan amount had a negative impact on your approval"
+    Generate a human-readable explanation using top SHAP features.
     """
-
-    # Build raw input and transform it using the same preprocessor as the model
     df = build_input_dataframe(application_data)
     X_trans = model_pipeline.named_steps["preprocessor"].transform(df)
 
@@ -193,14 +142,11 @@ def generate_simple_shap_explanation(explainer, model_pipeline, application_data
     arr = shap_values if isinstance(shap_values, (list, tuple)) else [shap_values]
     vals = np.array(arr[0]).flatten()
 
-    # Use transformed feature names for labels
     if feature_names is None:
         feature_names = load_feature_names()
-
     if feature_names is None:
         feature_names = [f"Feature {i+1}" for i in range(len(vals))]
 
-    # Pick top features by absolute SHAP value
     pairs = list(zip(feature_names, vals))
     pairs_sorted = sorted(pairs, key=lambda x: abs(x[1]), reverse=True)[:topn]
 
@@ -209,16 +155,11 @@ def generate_simple_shap_explanation(explainer, model_pipeline, application_data
 
     lines = []
     for name, value in pairs_sorted:
-        # Make names more readable, e.g. 'Credit_Score' → 'Credit score'
         human_name = name.replace("_", " ")
-
         if value < 0:
             lines.append(f"- {human_name} had a negative impact on your loan approval.")
         else:
             lines.append(f"- {human_name} had a positive impact on your loan approval.")
 
-    explanation = (
-        "The decision was mainly based on these factors:\n"
-        + "\n".join(lines)
-    )
+    explanation = "The decision was mainly based on these factors:\n" + "\n".join(lines)
     return explanation
