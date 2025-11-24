@@ -13,7 +13,7 @@ import jwt
 AUTH0_DOMAIN = "dev-kuzw0skvn3eikhgp.us.auth0.com"
 CLIENT_ID = "6bOpzoB2oObOQ8CxJ82FKFd4NA3N21o0"
 CLIENT_SECRET = "sfo95lc1QEzaqRmQtACugXUh3O5XNX_brKVsalY4toxfR4K-wvbxMx_ped9LP2I0"
-REDIRECT_URI = "https://fairfin-ai-7ufnb4rxfnwhwbs2xaygzr.streamlit.app/redirect"
+REDIRECT_URI = "https://fairfin-ai-7ufnb4rxfnwhwbs2xaygzr.streamlit.app"
 AUTH0_BASE_URL = f"https://{AUTH0_DOMAIN}"
 AUTH0_AUTHORIZE_URL = f"{AUTH0_BASE_URL}/authorize"
 AUTH0_TOKEN_URL = f"{AUTH0_BASE_URL}/oauth/token"
