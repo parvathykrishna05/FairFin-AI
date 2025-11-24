@@ -46,7 +46,7 @@ if "code" in query_params:
         st.error("Authentication failed. Please try again.")
 
     # Fix infinite loop — fully reset URL parameters
-    st.experimental_set_query_params()
+    st.query_params = {}
     st.rerun()
 
 
