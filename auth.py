@@ -31,7 +31,7 @@ def build_auth_url():
         "scope": "openid profile email offline_access",
         "state": str(uuid.uuid4()),
         "nonce": str(uuid.uuid4()),
-        "prompt": "login"   # forces fresh login instead of using stale cached SSO
+        "prompt": "select_account"   # forces fresh login instead of using stale cached SSO
     }
 
 
