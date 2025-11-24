@@ -1,21 +1,24 @@
 """
-Model loading and prediction utilities.
-Assumes artifacts are in ./models directory:
-- model.joblib        (sklearn pipeline)
-- explainer.joblib    (shap explainer on transformed features)
-- feature_names.joblib
-- numerical_cols.joblib
-- categorical_cols.joblib
+Central model + SHAP helper utilities for FairFin
+Ensures:
+- Safe model loading
+- Safe SHAP loading
+- Input alignment
+- Human readable SHAP explanations
 """
 
 import os
 import joblib
-import pandas as pd
-import matplotlib.pyplot as plt
-import shap
 import numpy as np
+import pandas as pd
+import shap
+import matplotlib.pyplot as plt
 
-MODEL_DIR = os.environ.get("MODEL_DIR", "models")
+
+# -------------------------
+# File paths for artifacts
+# -------------------------
+MODEL_DIR = os.getenv("MODEL_DIR", "models")
 
 MODEL_PATH = os.path.join(MODEL_DIR, "model.joblib")
 EXPLAINER_PATH = os.path.join(MODEL_DIR, "explainer.joblib")
@@ -28,27 +31,21 @@ CATEGORICAL_COLS_PATH = os.path.join(MODEL_DIR, "categorical_cols.joblib")
 # Load helpers
 # -------------------------
 def load_model():
+    """Load trained model pipeline"""
     if os.path.exists(MODEL_PATH):
         return joblib.load(MODEL_PATH)
     return None
 
 
-def load_explainer(model):
-    """Create SHAP explainer dynamically instead of loading from disk."""
-    try:
-        # Get a small synthetic baseline with correct shape
-        feature_names = load_feature_names()
-        if feature_names is None:
+def load_explainer():
+    """Load SHAP explainer if available"""
+    if os.path.exists(EXPLAINER_PATH):
+        try:
+            return joblib.load(EXPLAINER_PATH)
+        except Exception as e:
+            print("❌ ERROR loading explainer:", e)
             return None
-
-        background = np.zeros((10, len(feature_names)))  # baseline
-        explainer = shap.Explainer(model.predict_proba, background)
-        return explainer
-
-    except Exception as e:
-        print("SHAP Explainer Error:", e)
-        return None
-
+    return None
 
 
 def load_feature_names():
@@ -58,38 +55,30 @@ def load_feature_names():
 
 
 def load_numerical_cols():
-    if os.path.exists(NUMERICAL_COLS_PATH):
-        return joblib.load(NUMERICAL_COLS_PATH)
-    return None
+    return joblib.load(NUMERICAL_COLS_PATH) if os.path.exists(NUMERICAL_COLS_PATH) else []
 
 
 def load_categorical_cols():
-    if os.path.exists(CATEGORICAL_COLS_PATH):
-        return joblib.load(CATEGORICAL_COLS_PATH)
-    return None
+    return joblib.load(CATEGORICAL_COLS_PATH) if os.path.exists(CATEGORICAL_COLS_PATH) else []
 
 
 # -------------------------
-# Data alignment helper
+# Data alignment
 # -------------------------
 def build_input_dataframe(application_data: dict) -> pd.DataFrame:
     """
-    Build a DataFrame for the model using the raw feature names
-    (numerical + categorical), adding missing columns with defaults
-    and ignoring extras like 'submitted_at'.
+    Convert input JSON into a model-friendly DataFrame and ensure column alignment.
     """
+
     df = pd.DataFrame([application_data])
 
-    num_cols = load_numerical_cols() or []
-    cat_cols = load_categorical_cols() or []
+    expected_cols = load_numerical_cols() + load_categorical_cols()
 
-    if num_cols or cat_cols:
-        expected_cols = list(num_cols) + list(cat_cols)
-
+    # If model was trained with column list, enforce it
+    if expected_cols:
         for col in expected_cols:
             if col not in df.columns:
-                df[col] = 0  # neutral default in your synthetic setup
-
+                df[col] = 0  # safe fallback value
         df = df[expected_cols]
 
     return df
@@ -99,78 +88,81 @@ def build_input_dataframe(application_data: dict) -> pd.DataFrame:
 # Prediction
 # -------------------------
 def predict_proba_and_class(model_pipeline, application_data):
-    """Returns (probability_of_approval, predicted_class)."""
+    """
+    Returns tuple: (probability_of_approval, predicted_class)
+    """
     df = build_input_dataframe(application_data)
-    proba = model_pipeline.predict_proba(df)[0, 1]
+    proba = float(model_pipeline.predict_proba(df)[0, 1])
     pred = int(model_pipeline.predict(df)[0])
-    return float(proba), pred
+    return proba, pred
 
 
 # -------------------------
-# SHAP bar plot
+# SHAP — Visual Bar Chart
 # -------------------------
 def shap_bar_plot(explainer, model_pipeline, application_data, feature_names=None, topn=10):
-    """Return a matplotlib figure with top-n features by absolute SHAP value."""
+
     df = build_input_dataframe(application_data)
-    X_trans = model_pipeline.named_steps["preprocessor"].transform(df)
 
-    shap_values = explainer.shap_values(X_trans)
-    arr = shap_values if isinstance(shap_values, (list, tuple)) else [shap_values]
-    vals = np.array(arr[0]).flatten()
+    try:
+        X_transformed = model_pipeline.named_steps["preprocessor"].transform(df)
+        shap_vals = explainer.shap_values(X_transformed)
+    except Exception as e:
+        raise RuntimeError(f"Unable to generate SHAP values: {e}")
+
+    if isinstance(shap_vals, list):
+        shap_vals = shap_vals[0]
+
+    shap_vals = np.array(shap_vals).flatten()
 
     if feature_names is None:
-        feature_names = load_feature_names()
-    if feature_names is None:
-        feature_names = [f"f{i}" for i in range(len(vals))]
+        feature_names = load_feature_names() or [f"Feature {i}" for i in range(len(shap_vals))]
 
-    data = list(zip(feature_names, vals))
-    data_sorted = sorted(data, key=lambda x: abs(x[1]), reverse=True)[:topn]
+    paired = list(zip(feature_names, shap_vals))
+    sorted_vals = sorted(paired, key=lambda x: abs(x[1]), reverse=True)[:topn]
 
-    if data_sorted:
-        names, values = zip(*data_sorted)
-    else:
-        names, values = [], []
+    names, values = zip(*sorted_vals)
+    values = list(values)[::-1]
+    names = list(names)[::-1]
 
-    fig, ax = plt.subplots(figsize=(6, max(2, len(values) * 0.4)))
-    y_pos = range(len(values))
-    ax.barh(y_pos, list(values)[::-1])
-    ax.set_yticks(y_pos)
-    ax.set_yticklabels(list(names)[::-1])
-    ax.set_xlabel("SHAP value")
-    ax.set_title("Top SHAP feature contributions")
+    fig, ax = plt.subplots(figsize=(5, len(values) * 0.4 + 1))
+    ax.barh(names, values)
+    ax.set_title("SHAP Feature Importance")
+    ax.set_xlabel("Contribution to Model Decision")
     plt.tight_layout()
+
     return fig
 
 
+# -------------------------
+# SHAP — Human Explanation
+# -------------------------
 def generate_simple_shap_explanation(explainer, model_pipeline, application_data, feature_names=None, topn=3):
     """
-    Generate a human-readable explanation using top SHAP features.
+    Produces human-readable bullet points explaining strongest model influences.
     """
+
     df = build_input_dataframe(application_data)
-    X_trans = model_pipeline.named_steps["preprocessor"].transform(df)
 
-    shap_values = explainer.shap_values(X_trans)
-    arr = shap_values if isinstance(shap_values, (list, tuple)) else [shap_values]
-    vals = np.array(arr[0]).flatten()
+    try:
+        X_transformed = model_pipeline.named_steps["preprocessor"].transform(df)
+        shap_vals = explainer.shap_values(X_transformed)
+    except Exception:
+        return "The model could not generate an explanation for this decision."
 
-    if feature_names is None:
-        feature_names = load_feature_names()
-    if feature_names is None:
-        feature_names = [f"Feature {i+1}" for i in range(len(vals))]
+    if isinstance(shap_vals, list):
+        shap_vals = shap_vals[0]
 
-    pairs = list(zip(feature_names, vals))
-    pairs_sorted = sorted(pairs, key=lambda x: abs(x[1]), reverse=True)[:topn]
+    shap_vals = np.array(shap_vals).flatten()
 
-    if not pairs_sorted:
-        return "The model could not generate a clear explanation for this decision."
+    feature_names = feature_names or load_feature_names() or [f"Feature {i}" for i in range(len(shap_vals))]
 
-    lines = []
-    for name, value in pairs_sorted:
-        human_name = name.replace("_", " ")
-        if value < 0:
-            lines.append(f"- {human_name} had a negative impact on your loan approval.")
-        else:
-            lines.append(f"- {human_name} had a positive impact on your loan approval.")
+    formatted = sorted(list(zip(feature_names, shap_vals)), key=lambda x: abs(x[1]), reverse=True)[:topn]
 
-    explanation = "The decision was mainly based on these factors:\n" + "\n".join(lines)
-    return explanation
+    explanation = "The decision was influenced most by:\n"
+    for name, val in formatted:
+        direction = "positive" if val > 0 else "negative"
+        clean_name = name.replace("_", " ").capitalize()
+        explanation += f"- {clean_name} had a **{direction} impact**\n"
+
+    return explanation.strip()
