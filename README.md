@@ -42,8 +42,9 @@ It simulates a realistic loan processing environment with multiple user roles an
 ---
 
 
-**🔗 Live Demo:** https://drive.google.com/file/d/1-bcbFzS6Ryq0hiBW2gYuRNqNpvE9NwOQ/view?usp=sharing
-**📁 Website:** https://fairfin-ai-7ufnb4rxfnwhwbs2xaygzr.streamlit.app/
+## **🔗 Live Demo:** https://drive.google.com/file/d/1-bcbFzS6Ryq0hiBW2gYuRNqNpvE9NwOQ/view?usp=sharing
+
+## **📁 Website:**  https://fairfin-ai-7ufnb4rxfnwhwbs2xaygzr.streamlit.app/
 
 ---
 
