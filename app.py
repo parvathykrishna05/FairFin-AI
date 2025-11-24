@@ -21,22 +21,27 @@ init_db()
 # ------------------------------
 query_params = st.query_params
 
+# ------------------------------
+# 1. AUTH0 CALLBACK HANDLING
+# ------------------------------
 if "code" in query_params:
-    code = query_params.get("code")
-    if isinstance(code, list):
-        code = code[0]
+    code = query_params["code"] if not isinstance(query_params["code"], list) else query_params["code"][0]
 
     try:
         token_data = exchange_code_for_tokens(code)
-        st.session_state["id_token"] = token_data.get("id_token")
+        st.session_state["id_token"] = token_data["id_token"]
         st.session_state["access_token"] = token_data.get("access_token")
 
-        # Remove the code from URL to prevent looping
-        st.query_params={}
+        # FIX: Clear only code, not the whole query param object
+        st.query_params.pop("code", None)
+
+        # Ensure clean reload
         st.rerun()
+
     except Exception as e:
         st.error(f"Authentication failed: {e}")
         st.stop()
+
 
 
 # ------------------------------
