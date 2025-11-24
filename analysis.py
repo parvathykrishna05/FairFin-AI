@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import shap
 import numpy as np
 import streamlit as st
+from joblib import dump, load
 
 
 MODEL_DIR = os.environ.get("MODEL_DIR", "models")
@@ -35,42 +36,31 @@ def load_model():
     return None
 
 
-@st.cache_resource
+
 def load_explainer():
-    """
-    Create a SHAP explainer in the current environment instead of
-    loading a pickled one (which may be incompatible across Python / numba versions).
-    The explainer works on the transformed feature space produced by the
-    pipeline's 'preprocessor' step, which matches how SHAP is used later.
-    """
-    model = load_model()
-    if model is None:
+
+    try:
+        model = load("models/model.pkl")
+
+        # Background dataset: required for shap.LinearExplainer
+        # If you already have a dataset, load that.
+        # Otherwise fallback to a random small baseline.
+        feature_names = load_feature_names()
+
+        if os.path.exists("models/background.npy"):
+            background = np.load("models/background.npy")
+        else:
+            # Fallback — small synthetic baseline with correct shape
+            background = np.zeros((10, len(feature_names)))
+
+        # Use proper explainer for logistic regression
+        explainer = shap.LinearExplainer(model, background)
+
+        return explainer
+
+    except Exception as e:
+        print("SHAP Explainer Error:", e)
         return None
-
-    # Get the final estimator (after preprocessor) from the pipeline
-    if hasattr(model, "named_steps") and "model" in model.named_steps:
-        base_model = model.named_steps["model"]
-    else:
-        base_model = model
-
-    # Try to infer number of transformed features
-    feature_names = load_feature_names()
-    if feature_names:
-        n_features = len(feature_names)
-        background = np.zeros((1, n_features))
-    else:
-        # Fallback: build a dummy row using known raw columns
-        num_cols = load_numerical_cols() or []
-        cat_cols = load_categorical_cols() or []
-        dummy_raw = {col: 0 for col in list(num_cols) + list(cat_cols)}
-
-        df_dummy = build_input_dataframe(dummy_raw)
-        X_dummy = model.named_steps["preprocessor"].transform(df_dummy)
-        background = np.zeros((1, X_dummy.shape[1]))
-
-    # Create a generic SHAP explainer on the transformed feature space
-    explainer = shap.Explainer(base_model, background)
-    return explainer
 
 
 
