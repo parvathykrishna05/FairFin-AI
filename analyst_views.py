@@ -16,7 +16,7 @@ def analyst_dashboard(user):
     page_header("Analyst Dashboard", "Review pending applications and run model analysis.")
 
     model = load_model()
-    explainer = load_explainer()
+    explainer = load_explainer(model=model)
     feature_names = load_feature_names()
 
     with session_scope() as s:

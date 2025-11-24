@@ -33,11 +33,22 @@ def load_model():
     return None
 
 
-def load_explainer():
-    """Load pre-trained SHAP explainer if available."""
-    if os.path.exists(EXPLAINER_PATH):
-        return joblib.load(EXPLAINER_PATH)
-    return None
+def load_explainer(model):
+    """Create SHAP explainer dynamically instead of loading from disk."""
+    try:
+        # Get a small synthetic baseline with correct shape
+        feature_names = load_feature_names()
+        if feature_names is None:
+            return None
+
+        background = np.zeros((10, len(feature_names)))  # baseline
+        explainer = shap.Explainer(model.predict_proba, background)
+        return explainer
+
+    except Exception as e:
+        print("SHAP Explainer Error:", e)
+        return None
+
 
 
 def load_feature_names():
