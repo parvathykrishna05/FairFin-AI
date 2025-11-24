@@ -151,25 +151,25 @@ Login → Role Identified → Loan Submission → ML Scoring → Pending Queue �
 ---
 
 ## 📁 Project Structure
+
+```
 FairFin-AI/
 │
-├── app.py # Streamlit application
-├── services.py # Business logic
-├── models.py # ORM models
-├── database.py # DB initialization
-├── utils.py # Helper functions
+├── app.py                 # Streamlit application
+├── services.py            # Business logic
+├── models.py              # ORM models
+├── database.py            # DB initialization
+├── utils.py               # Helper functions
 │
 ├── ml/
-│ ├── model_training.py
-│ ├── model.joblib
-│ ├── explainer.joblib
-│ └── feature_names.joblib
+│   ├── model_training.py
+│   ├── model.joblib
+│   ├── explainer.joblib
+│   └── feature_names.joblib
 │
-├── assets/ # CSS and images
+├── assets/                # CSS and images
 └── README.md
-
-
----
+```
 
 ## ▶️ Running Locally
 
@@ -177,11 +177,26 @@ FairFin-AI/
 ```bash
 git clone https://github.com/parvathykrishna05/FairFin-AI
 cd FairFin-AI
-## 2. Install dependencies
+```
+
+### 2. Install dependencies
+```bash
 pip install -r requirements.txt
-## 3.Create .env
-## 4.Start the application
+```
+
+### 3. Create `.env`
+```
+AUTH0_DOMAIN
+AUTH0_CLIENT_ID
+AUTH0_CLIENT_SECRET
+AUTH0_API_AUDIENCE
+DATABASE_URL
+```
+
+### 4. Start the application
+```bash
 streamlit run app.py
+```
 
 ## 👥 Team ZENFIN
 
