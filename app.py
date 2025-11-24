@@ -1,5 +1,5 @@
 import streamlit as st
-from auth import build_auth_url, exchange_code_for_tokens, decode_id_token
+from .auth import build_auth_url, exchange_code_for_tokens, decode_id_token
 from models import init_db, User
 from services import session_scope
 import user_views, analyst_views, admin_views
