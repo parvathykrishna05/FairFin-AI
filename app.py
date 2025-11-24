@@ -5,6 +5,13 @@ from models import init_db, User
 from services import session_scope
 import user_views, analyst_views, admin_views
 
+import os
+st.sidebar.write("🔍 DEBUG:")
+st.sidebar.write("AUTH0_DOMAIN =", os.getenv("AUTH0_DOMAIN"))
+st.sidebar.write("CLIENT_ID =", os.getenv("CLIENT_ID"))
+st.sidebar.write("REDIRECT_URI =", os.getenv("REDIRECT_URI"))
+
+
 # Initialize database
 init_db()
 
