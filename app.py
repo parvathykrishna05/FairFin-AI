@@ -42,11 +42,13 @@ if "code" in query_params:
         token_data = exchange_code_for_tokens(code)
         st.session_state["id_token"] = token_data.get("id_token")
         st.session_state["access_token"] = token_data.get("access_token")
-    except Exception as e:
+    except Exception:
         st.error("Authentication failed. Please try again.")
 
-    st.query_params.clear()
+    # Fix infinite loop — fully reset URL parameters
+    st.experimental_set_query_params()
     st.rerun()
+
 
 
 # ------------------------------
