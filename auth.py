@@ -10,14 +10,15 @@ from urllib.parse import urlencode
 import requests
 import jwt
 
-AUTH0_DOMAIN = "dev-kuzw0skvn3eikhgp.us.auth0.com"
-CLIENT_ID = "6bOpzoB2oObOQ8CxJ82FKFd4NA3N21o0"
-CLIENT_SECRET = "sfo95lc1QEzaqRmQtACugXUh3O5XNX_brKVsalY4toxfR4K-wvbxMx_ped9LP2I0"
-REDIRECT_URI = "http://localhost:8501"
+AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")
+CLIENT_ID = os.getenv("AUTH0_CLIENT_ID")
+CLIENT_SECRET = os.getenv("AUTH0_CLIENT_SECRET")
+REDIRECT_URI = os.getenv("REDIRECT_URI")
 
 AUTH0_BASE_URL = f"https://{AUTH0_DOMAIN}"
 AUTH0_AUTHORIZE_URL = f"{AUTH0_BASE_URL}/authorize"
 AUTH0_TOKEN_URL = f"{AUTH0_BASE_URL}/oauth/token"
+
 
 def build_auth_url():
     params = {
