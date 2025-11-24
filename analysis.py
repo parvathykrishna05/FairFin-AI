@@ -14,6 +14,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import shap
 import numpy as np
+import streamlit as st
+
 
 MODEL_DIR = os.environ.get("MODEL_DIR", "models")
 
@@ -33,10 +35,43 @@ def load_model():
     return None
 
 
+@st.cache_resource
 def load_explainer():
-    if os.path.exists(EXPLAINER_PATH):
-        return joblib.load(EXPLAINER_PATH)
-    return None
+    """
+    Create a SHAP explainer in the current environment instead of
+    loading a pickled one (which may be incompatible across Python / numba versions).
+    The explainer works on the transformed feature space produced by the
+    pipeline's 'preprocessor' step, which matches how SHAP is used later.
+    """
+    model = load_model()
+    if model is None:
+        return None
+
+    # Get the final estimator (after preprocessor) from the pipeline
+    if hasattr(model, "named_steps") and "model" in model.named_steps:
+        base_model = model.named_steps["model"]
+    else:
+        base_model = model
+
+    # Try to infer number of transformed features
+    feature_names = load_feature_names()
+    if feature_names:
+        n_features = len(feature_names)
+        background = np.zeros((1, n_features))
+    else:
+        # Fallback: build a dummy row using known raw columns
+        num_cols = load_numerical_cols() or []
+        cat_cols = load_categorical_cols() or []
+        dummy_raw = {col: 0 for col in list(num_cols) + list(cat_cols)}
+
+        df_dummy = build_input_dataframe(dummy_raw)
+        X_dummy = model.named_steps["preprocessor"].transform(df_dummy)
+        background = np.zeros((1, X_dummy.shape[1]))
+
+    # Create a generic SHAP explainer on the transformed feature space
+    explainer = shap.Explainer(base_model, background)
+    return explainer
+
 
 
 def load_feature_names():
