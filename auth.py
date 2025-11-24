@@ -21,15 +21,18 @@ AUTH0_AUTHORIZE_URL = f"{AUTH0_BASE_URL}/authorize"
 AUTH0_TOKEN_URL = f"{AUTH0_BASE_URL}/oauth/token"
 
 
-def build_auth_url():
-    params = {
-        "client_id": CLIENT_ID,
-        "response_type": "code",
-        "redirect_uri": REDIRECT_URI,
-        "scope": "openid profile email",
-        "prompt": "select_account consent"  # ← VERY IMPORTANT
-    }
-    return f"{AUTH0_AUTHORIZE_URL}?{urlencode(params)}"
+import uuid
+
+params = {
+    "client_id": CLIENT_ID,
+    "response_type": "code",
+    "redirect_uri": REDIRECT_URI,
+    "scope": "openid profile email offline_access",
+    "state": str(uuid.uuid4()),
+    "nonce": str(uuid.uuid4()),
+    "prompt": "login"   # forces fresh login instead of using stale cached SSO
+}
+
 
 
 
