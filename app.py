@@ -5,6 +5,15 @@ from models import init_db, User
 from services import session_scope
 import user_views, analyst_views, admin_views
 
+import streamlit as st
+
+st.set_page_config(page_title="FairFin - Loan Application Portal", layout="wide")
+
+# Allow Auth0 callback parameters without breaking UI
+if st.query_params:
+    pass
+
+
 import os
 st.sidebar.write("🔍 DEBUG:")
 st.sidebar.write("AUTH0_DOMAIN =", os.getenv("AUTH0_DOMAIN"))
@@ -36,7 +45,7 @@ if "code" in query_params:
     except Exception as e:
         st.error("Authentication failed. Please try again.")
 
-    st.query_params = {}
+    st.query_params.clear()
     st.rerun()
 
 
