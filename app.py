@@ -87,25 +87,29 @@ if "id_token" in st.session_state and st.session_state["id_token"]:
     # ------------------------------
     # 4. ROLE SELECTION (first login only)
     # ------------------------------
-    if not user.role or user.role.strip() == "":
-        st.info("Please select your role to continue.")
+    # ------------------------------
+# 4. ROLE SELECTION (first login only)
+# ------------------------------
+if user.role not in ["user", "analyst", "admin"]:
+    st.info("Please select your role to continue.")
 
-        selected_role = st.radio(
-            "Select role",
-            ["user", "analyst", "admin"],
-            key=f"role_select_{email}"
-        )
+    selected_role = st.radio(
+        "Select your role:",
+        ["user", "analyst", "admin"],
+        key=f"role_select_{email}"
+    )
 
-        if st.button("Save Role", key=f"save_role_{email}"):
-            with session_scope() as s:
-                db_user = s.query(User).filter(User.auth0_id == auth0_sub).first()
-                db_user.role = selected_role
-                s.commit()
+    if st.button("Save Role", key=f"save_role_{email}"):
+        with session_scope() as s:
+            db_user = s.query(User).filter(User.auth0_id == auth0_sub).first()
+            db_user.role = selected_role.strip()
+            s.commit()
 
-            st.success("Role saved. Reloading...")
-            st.rerun()
+        st.success("Role saved successfully! Redirecting...")
+        st.rerun()
 
-        st.stop()
+    st.stop()
+
 
     # ------------------------------
     # 5. ROLE-BASED VIEW ROUTING
